@@ -1,14 +1,21 @@
+from setuptools import setup
 import os
 import re
 import subprocess
 
+
 def get_project_path():
     return os.path.dirname(os.path.abspath(__file__))
 
+
 def get_version():
     """
-    Always return base tag version like 1.1.2 (no .devN / .postN).
-    WARNING: PyPI will reject re-uploading the same version.
+    Return a PEP 440 compliant version derived from `git describe`, using .postN.
+
+    Examples:
+      - v1.1.2              -> 1.1.2
+      - v1.1.2-0-gabcd123   -> 1.1.2
+      - v1.1.2-3-gabcd123   -> 1.1.2.post3
     """
     repo_dir = get_project_path()
 
@@ -23,6 +30,7 @@ def get_version():
         except Exception:
             return ""
 
+    # Use a stable format when available
     desc = _run_git(["describe", "--tags", "--long", "--always"])
     if not desc:
         return "0.0.0"
@@ -33,4 +41,31 @@ def get_version():
         return "0.0.0"
 
     base = m.group(1)
-    return base
+    distance = m.group(2)
+
+    # Exactly on tag (or tag-like)
+    if distance is None or distance == "0":
+        return base
+
+    # Post-release version (no dev)
+    return f"{base}.post{distance}"
+
+
+setup(
+    name="yashandb-sqlalchemy",
+    version=get_version(),
+    description="YashanDB Dialect for SQLAlchemy",
+    author="CoD",
+    author_email="cod@sics.ac.cn",
+    url="https://www.yashandb.com/",
+    license="MulanPSL-2.0",
+    packages=["yashandb_sqlalchemy"],
+    include_package_data=True,
+    entry_points={
+        "sqlalchemy.dialects": [
+            "yashandb = yashandb_sqlalchemy.yaspy:YasDialect_yaspy",
+            "yashandb.yaspy = yashandb_sqlalchemy.yaspy:YasDialect_yaspy",
+            "yashandb.yasdb = yashandb_sqlalchemy.yasdb:YasDialect_yasdb",
+        ]
+    },
+)
